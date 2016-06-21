@@ -10,5 +10,6 @@ Ckspider - https://www.chilkatsoft.com/refdoc/vcCkSpiderRef.html
 
 # Crawler Execution
 First: make
+
 Second: ./crawler
 
