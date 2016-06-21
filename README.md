@@ -32,8 +32,11 @@ Para o processo de compilação do código você deverá seguir os seguintes pas
 Para uma melhor vizualização, deixarei imprimindo no terminal os seguintes campos:
 
 TempoDecorrido		UrlColetada 		NúmerodePaginasColetadas
+
 1.00			www.globo.com			1
+
 1.01			www.catho.com.br		2
+
 ...			...			       ...
 
 
