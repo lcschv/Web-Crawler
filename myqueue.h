@@ -15,11 +15,13 @@ using namespace std;
 #include "include/CkStringArray.h"
 #include "include/CkSpider.h"
 
+/* Essa é a struct Links, level é o nível da URL*/
 struct Links{
     string url;
     int level;
 };
 
+/*PoliteLink, possui um link e BlockedUntil que é o Tempo em que aquela URL poderá ser coletada*/
 struct PoliteLink {
 	Links link;
 	long blockedUntil;
@@ -30,10 +32,20 @@ struct cmp {
     bool operator()(const Links a, const Links b){return a.level > b.level;}
 };
 
+
+/*Comparador para a PolitenessQueue, utiliza o valor do BlockedUntil, ou seja, menor tempo sai primeiro*/
 struct cmpPolite {
     bool operator()(const PoliteLink a, const PoliteLink b){return a.blockedUntil > b.blockedUntil;}
 };
 
+
+
+/*Essa classe tem como principal objetivo controlar a Priority Queue, 
+evitando condições de corrida entre as Threads e as condições de Politeness
+Nela são declarados as duas Hashs PriorityQueue e PolitinessQueue.
+São declarados as Hashs de controle de links repitidos AlreadyAddedUrls e DomainHash para
+controle de acessos a URLs de mesmo domínio. Mais detalhes sobre os métodos encontra-se no .cpp.
+*/
 class MyQueue {
 
 	private:
@@ -44,9 +56,7 @@ class MyQueue {
 		CkString tempBaseDomain;
 		double currentTime, lastTimeAccess, newTimeAccess;		
 		vector<Links> PriorityQueue;
-		//long tempoEspera, tempoLimite;
 		vector<PoliteLink> PolitenessQueue;
-		
 		mutex mtx;
 	public:
 		unordered_map <string, bool> AlreadyAddedUrls;
@@ -62,8 +72,6 @@ class MyQueue {
 			aux4 = "ftp://";
 			pops = 0;
 			startTime = this->get_wall_time();
-			//tempoEspera = 20;
-			//tempoLimite = 100;
 		};
 
 		Links pop();
