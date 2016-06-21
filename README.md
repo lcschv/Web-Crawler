@@ -33,10 +33,10 @@ Para uma melhor vizualização, deixarei imprimindo no terminal os seguintes cam
 
 TempoDecorrido		UrlColetada 		NúmerodePaginasColetadas
 
-1.00			www.globo.com			1
+1.00			  www.globo.com			    1
 
-1.01			www.catho.com.br		2
+1.01		  	www.catho.com.br	  	2
 
-...			...			       ...
+...		      	...			            ...
 
 
