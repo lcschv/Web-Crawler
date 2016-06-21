@@ -26,10 +26,11 @@ using namespace std;
 /*É criada a PriorityQueue de Structs Links. */
 
 
-/*Realiza a contagem de níveis de uma dada URL. Essa contagem é feita da seguinte maneira, primeiramente efetuo a remoção 
-de protolos e www's. Após feito isso, conto a quantidade de 'Pontos' até o primeiro /, dessa forma eu verifico a quantidade de
-níveis existentes no domínio. Em seguida, verifico a quantidade de '/' que o link possui, realizo a soma desses valores e obtenho assim
-o level do url passado. Por último, faço a inserção desse url na PriorityQueue. 
+/*Realiza a contagem de níveis de uma dada URL. Essa contagem é feita da seguinte maneira, 
+primeiramente efetuo a remoção de protolos e www's. Após feito isso, conto a quantidade de 'Pontos' 
+contidas no URLDomain e BaseDomain, realizo a subtração entre BaseDomain-UrlDomain, dessa forma eu verifico a quantidade de
+níveis existentes no domínio. Em seguida, verifico a quantidade de '/' e multiplico por 10. 
+Realizo a soma desses valores e obtenho assim o level do url passado. Por último, retorno o Link; 
 */
 Links getLevelUrl(CkString url){
 	CkSpider tempSpider;
@@ -60,14 +61,14 @@ Links getLevelUrl(CkString url){
 
 	newLink.url = url.getString();
 	newLink.level = level;
-//	cout<< "sai do getlevel"<<endl;
 	return newLink;	
 }
 
 
-/* Adiciono à Priority Queue todos os items da Unspired e outboundlinks. Essa adição é realizada pela
-função getLevelUrl(), nela já é realizado o cálculo do nível do link e a adição
-a PriorityQueue de acordo com a comparação do nível do link a ser adicionado.*/    
+/* Adiciono à Priority Queue todos os items das listas Unspired e Outboundlinks. Essa adição é realizada pelo método
+push() da classe MyQueue. Passo assim, a chamada queueController->push(getLevelUrl(nextUnspidered)) para
+cada um dos items de ambas as litas.
+É verificado a existência de ".br e "br.", o que me garante a coleta apenas de páginas do domínio Brasileiro. */    
 
 void MoveLinksToPriorityQueue(CkSpider *spider, MyQueue *queueController){
 	
@@ -80,19 +81,11 @@ void MoveLinksToPriorityQueue(CkSpider *spider, MyQueue *queueController){
 	int total_unspidered = spider->get_NumUnspidered();
     for (i = 0; i < total_unspidered; i++)
     {    
-  //       string aux5 = ".br/";
-		// string aux6 = "/br.";
 		spider->GetUnspideredUrl(0, nextUnspidered);
-		// teste = nextUnspidered.getString();
-		// size_t checkbr1 = teste.find(aux5);
-		// size_t checkbr2 = teste.find(aux6);
-		// if (checkbr1 != string::npos || checkbr2 != string::npos){
-	    queueController->push(getLevelUrl(nextUnspidered));
-        //}
+	   	queueController->push(getLevelUrl(nextUnspidered));
         spider->SkipUnspidered(0);
-   	//cout <<"dei pau no moves, unpired";
 	 }
-//	cout << "sai dos unspired .."<<endl;
+
     for (i = 0; i < spider->get_NumOutboundLinks(); i++)
     {
         spider->GetOutboundLink(i, url);
@@ -104,11 +97,14 @@ void MoveLinksToPriorityQueue(CkSpider *spider, MyQueue *queueController){
 		if (checkbr1 != string::npos || checkbr2 != string::npos){
         	queueController->push(getLevelUrl(url));
     	}
-	//cout << "dei pau nos outbound";
     }
-//	cout << "sai dos outbound .."<<endl;
     spider->ClearOutboundLinks();
 }
+
+
+/*Realiza a escrita do buffer para o arquivo.
+Em seguida realiza o shrink_to_fit() para economia de espaço de memória.
+*/
 void WriteBufferToFile(vector<string> *buffer, string namefile){
 
 	ofstream filename;
@@ -119,30 +115,28 @@ void WriteBufferToFile(vector<string> *buffer, string namefile){
 			buffer->pop_back();
 	}
 	buffer->shrink_to_fit();
-	//delete buffer;
-	//buffer = new vector<string>;
 	filename.close();
-//	cout << "escrevi no arquivo .."<<endl;
 }
 
+/* Função principal do programa. Cada uma das threads chama essa função. Cada uma das 
+threads possui seu próprio CkSpider.
+Declara os buffers, nome dos arquivos, alguns auxilares..
+Cria um loop infinito, verifica se a PriorityQueue está vazia, se estiver faz com que a thread durma por 2 segundos..
+Remove os http, https, etc.. para o cálculo de Dominios.
+*/
 void Crawling(int ThreadNum, MyQueue *queueController){
 
 	vector<string> *buffer = new vector<string>;
 	CkSpider *spider = new CkSpider();
 	int countfile;
-	//mutex mtx;
 	int sec;
-
-	// string namefile = to_string(ThreadNum)+"out_thread";
 
 	Links nextUrlToBeSpired;  
 	CkString url, lastUrl,lastTitle, lastHtml,nextUnspidered, newdomain,tempUrl;
-	string lastUrlString, lastHtmlString, tempString, newdomainstr, olddomainstr = "";
+	string lastUrlString, lastHtmlString, tempString, newdomainstr;
 	double currentTime;
-	double timediff;
 	int i, count = 0;
 	string namefile = "files/data_" + to_string(ThreadNum) + "_thread-out";
-	//Adiciona para a PriorityQueue todos os Unspired e outboundlinks.
 	CkString aux1, aux2, aux3, aux4;
 	aux1 = "http://";
 	aux2 = "https://";
@@ -158,6 +152,8 @@ void Crawling(int ThreadNum, MyQueue *queueController){
 			usleep( 2000000 );
 			nextUrlToBeSpired = queueController->pop();			
 		}
+
+		// removing https, http, ftp.. etc
 		tempUrl = nextUrlToBeSpired.url.c_str();
 		tempUrl.removeFirst(aux1);
 		tempUrl.removeFirst(aux2);
@@ -165,69 +161,58 @@ void Crawling(int ThreadNum, MyQueue *queueController){
 		tempUrl.removeFirst(aux4);
 		spider->GetUrlDomain(tempUrl,newdomain);
 		newdomainstr = spider->getBaseDomain(newdomain);
-		// cout << "GetUrlDomain URL:" << newdomain.getString()<<endl;
-		// cout << "basedomain:" << newdomainstr <<endl;
-		// cout << "olddomain:" << olddomainstr<< endl;
-		// cout << " URL to be unspired:" << nextUrlToBeSpired.url << endl;
-		if (newdomainstr.compare(olddomainstr) != 0){
-			//cout << "Entrei"<<endl;
-			spider->Initialize(newdomainstr.c_str());	
-		}
-		olddomainstr = newdomainstr;				
-		// spider->Initialize(domain.getString());
-//		cout <<"URL A SER UNSPIRED: " <<nextUrlToBeSpired.url << endl;	
+		
+		/* Realiza o initialize do Domínio recebido ..se não realizar o initialize todas as vezes dá error, algumas
+		 paginas não são coletadas..*/
+		spider->Initialize(newdomainstr.c_str());
+		
 
 		spider->AddUnspidered(nextUrlToBeSpired.url.c_str());
-		//cout << " URL a ser coletada-> "<< nextUrlToBeSpired.url <<" level: " <<nextUrlToBeSpired.level <<"\n"<<newdomainstr<<"\n";
+		/*Adicionei alguns Patterns a ser evitados nos links, pois há casos que caiam em "share, perfil de twitter, etc"
+		Apenas urls importantes serão coletadas.
+		*/
 		spider->AddAvoidPattern("*twitter*");
 	    spider->AddAvoidPattern("*facebook*");
 	    spider->AddAvoidPattern("*registro*");
 	    spider->AddAvoidPattern("*calendar*");
-	   // spider.AddAvoidPattern("*page=*");
-	    //spider.AddAvoidPattern("*p=*");
 	    spider->AddAvoidPattern("*jora*");
 	    spider->AddAvoidPattern("*blogspot*");
 		spider->AddAvoidPattern("*=*");	
-		spider->AddAvoidPattern("*amp*");	
+		spider->AddAvoidPattern("*amp*");
+
 		currentTime= queueController->get_wall_time();
-		timediff= currentTime-queueController->DomainHash[newdomainstr];
-		//cout <<"DomainHashtime>"<< queueController->DomainHash[newdomainstr];
-		//cout <<"TIMEDIFF:" <<timediff<<endl;
-		
 
+		
+		// Realiza o CrawlNext() para procurar por novos links..
 		spider->CrawlNext();
-		std::cout <<"Time: " <<queueController->get_wall_time() - queueController->startTime << " URL: " <<nextUrlToBeSpired.url<< "\n";
-
-//	    cout << currentTime;
 		
-
+		//Função para mover os links encontrados pelo CrawlNext() para a PriorityQueue.
 		MoveLinksToPriorityQueue(spider, queueController);
 
+		// Pega o URL, HTML e Titulo da página ..
 		spider->get_LastUrl(lastUrl);
-	    spider->get_LastHtmlTitle(lastTitle);
 	    spider->get_LastHtml(lastHtml);
-	    spider->get_LastMethodSuccess();
 	    lastUrlString = lastUrl.getString();
 	    lastHtmlString = lastHtml.getString();
+	    //Adiciona ao buffer o Url e HTML da pagina coletada
 	    tempString = "||| " + lastUrlString + " | " + lastHtmlString;
 	    buffer->push_back(tempString);
 
-	    if (buffer->capacity()> 15){
+
+	    // Verifica se o buffer já possui 100páginas coletadas, se sim escreve em disco.
+	    if (buffer->capacity()> 100){
 	    	string namefile2 = namefile + "_" + to_string(countfile);
 	    	WriteBufferToFile(buffer, namefile2);
 	    	countfile++;
+
+	    //Reinstancia spider, porque antes estava tendo problemas .. ficava lento após certo tempo.
 		delete (spider);
-//		cout << "oi";
 		spider = new CkSpider();
 	    }
-	    
-	   // cout << buffer->capacity()<<endl;
-	     // printf("URL[%d]: %s\nTitle: %s\n\n", count, lastUrl.getString(), lastTitle.getString());
-	     // cout << ThreadNum;
-	      //count++; 
 	}
 }
 
+/*Inicializa a PriorityQueue adicionando as seeds a Queue.*/
 void InitializeCrawler(MyQueue *queueController){
 	CkSpider spider;
 	CkString seed1,seed2,seed3,seed4, seed5, seed6, seed7;
@@ -249,18 +234,16 @@ void InitializeCrawler(MyQueue *queueController){
 }	
 
 
-
 int main(int argc, char** argv)
 {
 
 	CkString urlTeste;
 	thread t[num_threads];
-	vector<CkString> seeds;
-	//getLevelUrl("http://www.catho.com.br");
 	MyQueue queueController;
 	InitializeCrawler(&queueController);
-	// double StartTime = get_wall_time();
 
+
+	// Declarado as Threads, cada thread chama a função Crawling..
     for (int ThreadNum = 0; ThreadNum < num_threads; ++ThreadNum) {
     	t[ThreadNum] = thread(Crawling, ThreadNum, &queueController);
     }
@@ -269,27 +252,4 @@ int main(int argc, char** argv)
 	    t[ThreadNum].join();
     }
 
-
-
-//    queueController.imprimir();
-
-
-
-
-
-   // printf("==================== ROUND 1 - HEAP ====================\n");
-    // cout << endl;
-    // cout << endl;
-    // cout << endl;
-
-//     while (!queueController.PriorityQueue.empty()){
-// 		Links tempVari;
-// 		tempVari = queueController.pop();
-// 		cout<<"url: "<< tempVari.url<<" level: "<< tempVari.level <<endl;
-// }
-
-
-	// urlTeste = "www.facebook.com/arroz/feijao";
-	// dominio = spider.getUrlDomain(urlTeste);
-	// cout << dominio << endl;	
 }
